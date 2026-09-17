@@ -1,0 +1,66 @@
+// Prisma schema — PostgreSQL
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ImageStatus {
+  PENDING     // uploaded, waiting in queue
+  PROCESSING  // worker picked it up
+  ACCEPTED
+  REJECTED
+}
+
+enum ImageFormat {
+  JPEG
+  PNG
+  HEIC
+}
+
+model Image {
+  id                String      @id @default(uuid())
+
+  // Original upload info
+  originalFileName  String
+  originalFormat    ImageFormat
+  originalMimeType  String
+  originalSizeBytes Int
+  rawStorageKey     String      // S3 key of the untouched upload (audit trail)
+
+  // Post-processing (converted/normalized) file
+  processedStorageKey String?   // S3 key of the JPEG/PNG served to clients
+  processedFormat      ImageFormat?
+  width                Int?
+  height               Int?
+
+  // Pipeline result
+  status            ImageStatus @default(PENDING)
+  rejectionReasons  Json?       // string[] of reason codes, e.g. ["BLURRY","MULTIPLE_FACES"]
+
+  // Validation-derived metadata (kept for debugging, tuning thresholds, and dedup)
+  perceptualHash    String?     // 64-bit dHash, hex-encoded, used for near-duplicate detection
+  blurScore         Float?      // Laplacian variance; lower = blurrier
+  faceCount         Int?
+  largestFaceAreaPct Float?     // largest face bounding-box area as % of image area
+
+  // Ownership / audit
+  uploadedByUserId  String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Self-relation: if this image was rejected as a near-duplicate of another
+  duplicateOfImageId String?
+  duplicateOf         Image?     @relation("Duplicates", fields: [duplicateOfImageId], references: [id])
+  duplicates           Image[]   @relation("Duplicates")
+
+  @@index([status])
+  @@index([perceptualHash])
+  @@index([uploadedByUserId])
+  @@index([createdAt])
+}
