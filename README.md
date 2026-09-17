@@ -3,6 +3,8 @@
 A full-stack system for uploading images, running them through an async validation/processing
 pipeline (format, resolution, blur, face count/size, duplicate detection), converting HEIC to
 JPEG/PNG, and sorting results into **Accepted** / **Rejected** with reasons.
+<img width="2296" height="1578" alt="image" src="https://github.com/user-attachments/assets/bd64976e-b5b6-47b4-8a50-dfebb7c696d3" />
+
 
 ```
 image-upload-system/
